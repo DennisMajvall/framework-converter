@@ -1,0 +1,1 @@
+export const ANY_OR_UNKNOWN: 'any' | 'unknown' = 'any';

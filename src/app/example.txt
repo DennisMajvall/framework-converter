@@ -1,0 +1,116 @@
+import React from 'react';
+import PropTypes from 'prop-types';
+import { IconChevronDown } from '@prisjakt/ui/icon/chevron-down';
+import { IconChevronUp } from '@prisjakt/ui/icon/chevron-up';
+import { Button } from 'src/components/button';
+import { ItemContainer, ActionsContainer, ToggleContainer } from './styles';
+
+export class ExpandableGrid extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = {
+      expanded: this.props.ssrExpanded,
+    };
+
+    this.expand = this.expand.bind(this);
+    this.collapse = this.collapse.bind(this);
+  }
+
+  expand() {
+    this.setState({ expanded: true });
+    this.props.onExpand();
+  }
+
+  collapse() {
+    this.setState({ expanded: false });
+    this.props.onCollapse();
+  }
+
+  componentDidMount() {
+    if (this.props.ssrExpanded) {
+      this.collapse();
+    }
+  }
+
+  render() {
+    const {
+      expandText,
+      collapseText,
+      items,
+      limit,
+      expandedActions,
+      showArrow,
+      canCollapse,
+      cssGrid,
+    } = this.props;
+    const { expanded } = this.state;
+
+    if (!items || items.length === 0) {
+      return null;
+    }
+
+    const needButton = limit < items.length && (!expanded || canCollapse);
+
+    const itemsToDisplay = expanded ? items : items.slice(0, limit);
+
+    return (
+      <div>
+        <ItemContainer $cssGrid={cssGrid}>{itemsToDisplay}</ItemContainer>
+
+        {expanded && expandedActions && (
+          <ActionsContainer>{expandedActions}</ActionsContainer>
+        )}
+
+        {needButton && (
+          <ToggleContainer>
+            <Button
+              iconPosition="bottom"
+              variant="text"
+              color="link"
+              size="medium"
+              icon={
+                // eslint-disable-next-line  no-nested-ternary
+                showArrow ? (
+                  this.state.expanded ? (
+                    <IconChevronUp />
+                  ) : (
+                    <IconChevronDown />
+                  )
+                ) : null
+              }
+              onClick={this.state.expanded ? this.collapse : this.expand}
+            >
+              <span>{this.state.expanded ? collapseText : expandText}</span>
+            </Button>
+          </ToggleContainer>
+        )}
+      </div>
+    );
+  }
+}
+
+const { number, arrayOf, element, func, string, bool, node } = PropTypes;
+ExpandableGrid.propTypes = {
+  limit: number.isRequired,
+  items: arrayOf(element).isRequired,
+  expandText: string.isRequired,
+  collapseText: string.isRequired,
+  showArrow: bool,
+  canCollapse: bool,
+  expandedActions: node,
+  onExpand: func,
+  onCollapse: func,
+  cssGrid: bool,
+  ssrExpanded: bool,
+  onClick: func,
+};
+
+ExpandableGrid.defaultProps = {
+  showArrow: true,
+  canCollapse: true,
+  expandedActions: null,
+  onExpand: () => {},
+  onCollapse: () => {},
+  ssrExpanded: false,
+  onClick: () => {},
+};
