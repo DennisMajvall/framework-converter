@@ -1,6 +1,11 @@
 export type OptionalString = string | undefined;
 export type DefaultValueMap = Record<string, OptionalString>;
 
+export type ScopeIndices = {
+  openBraceIndex: number;
+  closeBraceIndex: number;
+}
+
 export type ComponentProperty = {
   name: string;
   type: string;
@@ -12,6 +17,8 @@ export type Component = {
   name: string;
   props: ComponentProperty[];
   constructor: Constructor;
+  scopeIndices: ScopeIndices;
+  methods: Method[];
 }
 
 export enum OutputTypes {
@@ -26,25 +33,15 @@ export type StateVariable = {
   defaultValue: OptionalString;
 }
 
-export type StateVariableGetters = {
-  localVariableName: OptionalString;
-  name: string;
-}
-
-export type StateVariableSetters = {
-  name: string;
-  value: string;
-}
-
 export type Constructor = {
   statementsToRun: string[];
   stateVariableDeclarations: StateVariable[];
 }
 
 export type Method = {
+  name: string;
+  methodArgsString: string;
   statementsToRun: string[];
-  getters: StateVariableGetters[];
-  setters: StateVariableSetters[];
 }
 
 export type ThisStateDeclaration = {

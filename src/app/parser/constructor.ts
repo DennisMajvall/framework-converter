@@ -1,4 +1,4 @@
-import { trimString } from '../helpers';
+import { getIndexOfClosingBrace, trimString } from '../helpers';
 import { ComponentProperty, Constructor } from '../types';
 import { extractThisStateLines, mapToStateVariable } from './state-variables';
 
@@ -43,18 +43,4 @@ function filterOutBoilerplateLines(line: string): boolean {
   }
 
   return true;
-}
-
-function getIndexOfClosingBrace(text: string, openBraceIndex: number): number {
-  let curlyBrackets = 1;
-  let index = openBraceIndex;
-  while (curlyBrackets > 0) {
-    index++;
-    const char = text[index];
-    if (char === '{')
-      curlyBrackets++;
-    else if (char === '}')
-      curlyBrackets--;
-  }
-  return index;
 }

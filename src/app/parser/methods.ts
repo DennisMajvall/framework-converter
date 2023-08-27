@@ -1,54 +1,109 @@
-import { trimString } from '../helpers';
+import { getIndexOfClosingBrace, indendations, trimString, trimStringCustom } from '../helpers';
+import { NUM_INDENTATION_SPACES } from '../settings';
 import { ComponentProperty, Method } from '../types';
 
-export function getMethods(text: string, props: ComponentProperty[]): Method {
-  const methodRegexResult = text.replaceAll(/ *constructor\(/g, '#CONSTRUCTOR#(').match(/( *)([a-zA-Z_0-9]+) *(\(.*?\))\W*{/);
-  if (!methodRegexResult) {
-    return {
-      statementsToRun: [],
-      getters: [],
-      setters: [],
-    }}
-
-  const methodName = methodRegexResult[2];
-  console.log('🚀 -> file: methods.ts:15 -> methodRegexResult -> methodName:', methodName);
-  const methodArgsString = methodRegexResult[3];
-  console.log('🚀 -> file: methods.ts:17 -> methodRegexResult -> methodArgsString:', methodArgsString);
-
-  const lines = getLinesInsideMethod(text, methodRegexResult);
-  console.log('🚀 -> file: methods.ts:15 -> methodRegexResult -> lines:', lines);
-  // const thisStateLines = extractThisStateLines(lines);
-  // const stateVariableDeclarations = thisStateLines.parsed.map(line => mapToStateVariable(line, props));
-
-  // const statementsToRun = lines
-  //   .filter(line => !thisStateLines.original.includes(line))
-  //   .map(trimString);
-
-  return {
-    statementsToRun: [],
-    getters: [],
-    setters: [],
+export function getMethodsOutput(methods: Method[]): string {
+  const getMethodOutput = (method: Method) => {
+    const { name, statementsToRun, methodArgsString } = method;
+    const args = methodArgsString.split(',').map(trimString).filter(Boolean);
+    const argsString = args.length ? `(${args.join(', ')})` : '';
+    let currIndentation = 2;
+    const statements = statementsToRun
+      .map(statement => {
+        if (statement.match(/^ *\}/)) currIndentation--;
+        const result = `${indendations(currIndentation)}${statement}`;
+        if (statement.match(/ *[a-zA-Z_].*? \{\n/)) currIndentation++;
+        return result;
+      })
+      .join('\n');;
+    return `${name}${argsString} {
+${statements}
+${indendations()}}`;
   }
+  return methods.map(getMethodOutput).join(`\n\n${indendations()}`);
 }
 
-function getLinesInsideMethod(text: string, methodRegexResult: RegExpMatchArray): string[] {
-  const startIndex = methodRegexResult.index || 0;
-  const openBraceIndex = startIndex + methodRegexResult[0]?.length;
-  const endIndex = getIndexOfClosingBrace(text, openBraceIndex);
-  const content = text.substring(openBraceIndex, endIndex);
-  return content.split('\n').map(trimString).filter(Boolean);
+export function getMethods(allText: string, props: ComponentProperty[]): Method[] {
+  const methods: Method[] = [];
+
+  const numIndentationOfMethods = allText.match(/( *)constructor\(.*?\)\W+{/)?.[1]?.length || NUM_INDENTATION_SPACES;
+  let text = allText;
+  const methodRegexp = new RegExp(`( {${numIndentationOfMethods}})([a-zA-Z_0-9]+) *\((.*?)\)\W*{`);
+  let regexResult;
+
+  while(regexResult = text.match(methodRegexp)) {
+    const name = regexResult[2];
+    const methodArgsString = regexResult[3];
+    const openBraceIndex = (regexResult.index || 0) + regexResult[0]?.length;
+    const endIndex = getIndexOfClosingBrace(text, openBraceIndex);
+
+    if (['constructor', 'rensder'].includes(name)) {
+      text = text.slice(endIndex);
+      continue;
+    }
+
+    const removeWhitespace = name !== 'render';
+
+    let content = text.substring(openBraceIndex, endIndex);
+    content = replaceGetters(content);
+    content = replaceSetters(content);
+    content = replacePropsDestructors(content);
+
+
+    const lines = content
+    .trim()
+    .split('\n')
+    .map(s => trimStringCustom(s, [',', 'this.state.', 'this.props.'], removeWhitespace));
+    methods.push({
+      name,
+      statementsToRun: lines,
+      methodArgsString,
+    });
+
+    text = text.slice(endIndex);
+  }
+
+  return methods;
 }
 
-function getIndexOfClosingBrace(text: string, openBraceIndex: number): number {
-  let curlyBrackets = 1;
-  let index = openBraceIndex;
-  while (curlyBrackets > 0) {
-    index++;
-    const char = text[index];
-    if (char === '{')
-      curlyBrackets++;
-    else if (char === '}')
-      curlyBrackets--;
+const replaceSetters = (content: string): string => {
+  const regex = /this\.setState\({(.+?)}\)/g;
+  let result = content;
+  let match;
+  while (match = regex.exec(content)) {
+    const stateVariableDeclarations = match[1].split(',').map(trimString).filter(Boolean);
+    const stateVariableAssignments = stateVariableDeclarations.map(declaration => {
+      const [name, value] = declaration.split(':').map(trimString);
+      return `set${name[0].toUpperCase()}${name.slice(1)}(${value})`;
+    });
+    const stateVariableAssignmentsString = stateVariableAssignments.join(', ');
+    result = result.replace(match[0], stateVariableAssignmentsString);
   }
-  return index;
+  return result;
+}
+
+const replacePropsDestructors = (content: string): string => {
+  const regex = /const {(.+?)} = this\.props;/gs;
+  let result = content;
+  let match;
+  while (match = regex.exec(content)) {
+    result = result.replace(match[0], '');
+  }
+  return result;
+}
+
+const replaceGetters = (content: string): string => {
+  const regex = /const {(.+?)} = this\.state;/gs;
+  let result = content;
+  let match;
+  while (match = regex.exec(content)) {
+    const stateVariableDeclarations = match[1].split(',').map(trimString).filter(s => !s.startsWith('}')).filter(Boolean);
+    const stateVariableAssignments = stateVariableDeclarations.map(declaration => {
+      const [name] = declaration.split(':').map(trimString);
+      return `const ${name} = get${name[0].toUpperCase()}${name.slice(1)}();`;
+    });
+    const stateVariableAssignmentsString = stateVariableAssignments.join('\n');
+    result = result.replace(match[0], stateVariableAssignmentsString);
+  }
+  return result;
 }
