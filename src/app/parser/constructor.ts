@@ -1,30 +1,53 @@
-export function getConstructor(text: string): string {
+import { trimString } from '../helpers';
+import { ComponentProperty, Constructor } from '../types';
+import { extractThisStateLines, mapToStateVariable } from './state-variables';
+
+export function getConstructor(text: string, props: ComponentProperty[]): Constructor {
   const constructorRegexResult = text.match(/( *)constructor\(.*?\)\W+{/);
-  console.log('🚀 -> file: constructor.ts:5 -> constructorRegexResult -> constructorRegexResult:', constructorRegexResult);
-  if (!constructorRegexResult)
-    return '';
+  if (!constructorRegexResult) {
+    return {
+      stateVariableDeclarations: [],
+      statementsToRun: [],
+    }}
 
-  const constructorIndex = constructorRegexResult.index || 0;
-  const constructorOpenBraceIndex = constructorIndex + constructorRegexResult[0]?.length;
-  const constructorEndIndex = getIndexOfClosingBrace(text, constructorOpenBraceIndex);
-  const constructorContent = text.substring(constructorOpenBraceIndex, constructorEndIndex);
-  const constructorLines = constructorContent.split('\n').filter(Boolean);
-  const constructorLineIndexDeclaringThisState = constructorLines.findIndex(line => line.match(/\W*this.state =/));
-  const thisStateIndentation = constructorLines[constructorLineIndexDeclaringThisState].match(/ */)?.[0] || '';
-  const thisStateIndentationNumIndentations = thisStateIndentation.length;
-  const thisStateClosingBraceWithTheSameIndentation = constructorLines.findIndex((line, index) => index>constructorLineIndexDeclaringThisState &&  line.match(
-    new RegExp(` {${thisStateIndentationNumIndentations}}\}`)
-  ));
-  const thisStateVariableDeclarationLines = constructorLines.slice(constructorLineIndexDeclaringThisState+1, thisStateClosingBraceWithTheSameIndentation);
-  console.log('🚀 -> file: constructor.ts:12 -> constructorRegexResult -> constructorLines:', constructorLines);
-  console.log('🚀 -> file: constructor.ts:27 -> getConstructor -> thisStateVariableDeclarationLines:', thisStateVariableDeclarationLines);
+  const lines = getLinesInsideConstructor(text, constructorRegexResult);
+  const thisStateLines = extractThisStateLines(lines);
+  const stateVariableDeclarations = thisStateLines.parsed.map(line => mapToStateVariable(line, props));
 
-  return '';
+  const statementsToRun = lines
+    .filter(line => !thisStateLines.original.includes(line))
+    .map(trimString);
+
+  return {
+    stateVariableDeclarations,
+    statementsToRun,
+  }
 }
 
-function getIndexOfClosingBrace(text: string, constructorOpenBraceIndex: number): number {
+function getLinesInsideConstructor(text: string, constructorRegexResult: RegExpMatchArray): string[] {
+  const startIndex = constructorRegexResult.index || 0;
+  const openBraceIndex = startIndex + constructorRegexResult[0]?.length;
+  const endIndex = getIndexOfClosingBrace(text, openBraceIndex);
+  const content = text.substring(openBraceIndex, endIndex);
+  return content.split('\n').filter(filterOutBoilerplateLines);
+}
+
+
+function filterOutBoilerplateLines(line: string): boolean {
+  if (line.trim().startsWith('super(')) {
+    return false;
+  } else if (line.match(/this\..* = this\..*\.bind\(this\)/)) {
+    return false;
+  } else if (!line.trim()) {
+    return false;
+  }
+
+  return true;
+}
+
+function getIndexOfClosingBrace(text: string, openBraceIndex: number): number {
   let curlyBrackets = 1;
-  let index = constructorOpenBraceIndex;
+  let index = openBraceIndex;
   while (curlyBrackets > 0) {
     index++;
     const char = text[index];

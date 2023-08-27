@@ -1,15 +1,16 @@
+import { cleanUpName, indendations, trimString } from '../helpers';
 import { ANY_OR_UNKNOWN } from '../settings';
 import { ComponentProperty, DefaultValueMap } from '../types';
 
 export function getPropsDefinition(props: ComponentProperty[]): string {
   return `type Props = {
-  ${getPropsAsMultilineString(props, false)}
+${indendations()}${getPropsAsMultilineString(props, false)}
 };\n`;
 }
 
 export function getPropsDeclaration(props: ComponentProperty[]): string {
   return `({
-  ${getPropNamesWithDefaultValuesAsMultilineString(props)}
+${indendations()}${getPropNamesWithDefaultValuesAsMultilineString(props)}
 }: Props)`;
 }
 
@@ -44,7 +45,7 @@ function getPropsAsMultilineString(props: ComponentProperty[], withSemiColon: bo
     return `${name}${required}: ${type}${defaultValue}${semiColon}`;
   });
 
-  return props.map(mapProp).join(',\n  ');
+  return props.map(mapProp).join(`,\n${indendations()}`);
 }
 
 function getPropNamesWithDefaultValuesAsMultilineString(props: ComponentProperty[]): string {
@@ -54,24 +55,11 @@ function getPropNamesWithDefaultValuesAsMultilineString(props: ComponentProperty
     return `${name}${defaultValue}`;
   });
 
-  return props.map(mapProp).join(',\n  ');
+  return props.map(mapProp).join(`,\n${indendations()}`);
 }
 
 const getPropsRegexp = (className: string): RegExp => new RegExp(className + '\.propTypes = {(.+?)};', 's');
 const getDefaultPropValuesRegexp = (className: string): RegExp => new RegExp(className + '\.defaultProps = {(.+?)};', 's');
-
-const cleanUpName = (name: string): string => {
-  return (name || '').replaceAll(/([^a-zA-Z0-9_])/g, '_').trim();
-}
-
-const trimString = (s: string): string => {
-  const toRemove = [';', ','];
-  let result = s;
-  for (const remove of toRemove) {
-    result = result.replaceAll(remove, '');
-  }
-  return result.trim();
-}
 
 const extractRequired = (input: ComponentProperty): ComponentProperty => {
   const required = input.type.includes('.isRequired');

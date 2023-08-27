@@ -1,11 +1,16 @@
+import { indendations } from '../helpers';
 import { Component, OutputTypes } from '../types';
 import { getConstructor } from './constructor';
+import { getMethods } from './methods';
 import { getProps, getPropsDeclaration, getPropsDefinition } from './props';
+import { getStateVariableOutput } from './state-variables';
 
 export function getComponentAsOutput(text: string, outputType: OutputTypes): string {
   const className = getClassName(text);
   const props = getProps(text, className);
-  const constructor = getConstructor(text);
+  const constructor = getConstructor(text, props);
+  const methods = getMethods(text, props);
+  console.log('🚀 -> file: component.ts:13 -> getComponentAsOutput -> methods:', methods);
 
   const component: Component = {
     name: className,
@@ -32,16 +37,22 @@ export function getComponentAsOutput(text: string, outputType: OutputTypes): str
 }
 
 function getComponentAsReactOutput(component: Component): string {
-  const { name, props } = component;
+  const { name, props, constructor } = component;
+  const stateVariableDeclarations = [...constructor.stateVariableDeclarations]
+  const stateVariablesOutput = getStateVariableOutput(stateVariableDeclarations)
   if (!props.length)
-    return `const ${name} = () => {`;
+    return `const ${name} = () => {
+${indendations()}${stateVariablesOutput}
+`;
 
   const propsDeclaration = getPropsDeclaration(props);
   const propsDefinition = getPropsDefinition(props);
 
   return `${propsDefinition}
 
-const ${name} = ${propsDeclaration} => {`;
+const ${name} = ${propsDeclaration} => {
+${indendations()}${stateVariablesOutput}
+`;
 }
 
 function getClassName(text: string): string {
