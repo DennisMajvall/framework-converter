@@ -13,7 +13,6 @@ export function getComponentAsOutput(text: string, outputType: OutputTypes): str
   const props = getProps(text, className);
   const constructor = getConstructor(componentContent, props);
   const methods = getMethods(componentContent, props);
-  console.log('🚀 -> file: component.ts:13 -> getComponentAsOutput -> methods:', methods);
 
   const component: Component = {
     constructor,

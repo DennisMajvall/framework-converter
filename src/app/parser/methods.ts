@@ -3,8 +3,18 @@ import { NUM_INDENTATION_SPACES } from '../settings';
 import { ComponentProperty, Method } from '../types';
 
 export function getMethodsOutput(methods: Method[]): string {
+  const getRenderMethodOutput = (method: Method) => {
+    const { statementsToRun, methodArgsString } = method;
+    const statements = statementsToRun.join('\n');
+    return `return (
+${statements}
+${indendations()});`;
+  };
+
   const getMethodOutput = (method: Method) => {
     const { name, statementsToRun, methodArgsString } = method;
+    if (name === 'render') return getRenderMethodOutput(method);
+
     const args = methodArgsString.split(',').map(trimString).filter(Boolean);
     const argsString = args.length ? `${args.join(', ')}` : '';
     let currIndentation = 2;
@@ -15,11 +25,12 @@ export function getMethodsOutput(methods: Method[]): string {
         if (statement.match(/ *[a-zA-Z_].*? \{/)) currIndentation++;
         return result;
       })
-      .join('\n');;
+      .join('\n');
     return `const ${name} = ${argsString} => {
 ${statements}
-${indendations()}}`;
-  }
+${indendations()}};`;
+  };
+
   return methods.map(getMethodOutput).join(`\n\n${indendations()}`);
 }
 
@@ -48,12 +59,13 @@ export function getMethods(allText: string, props: ComponentProperty[]): Method[
     content = replacePropsDestructors(content);
     content = replaceGetters(content);
     content = replaceSetters(content);
+    content = content.trim();
 
 
     const lines = content
-    .trim()
-    .split('\n')
-    .map(s => trimStringCustom(s, [',', 'this.state.', 'this.props.'], removeWhitespace));
+      .split('\n')
+      .map(s => s.match(/^\w.*$/) ? `${indendations(2)}${s}` : s)
+      .map(s => trimStringCustom(s, ['this.state.', 'this.props.'], removeWhitespace));
 
     methods.push({
       name,
@@ -112,7 +124,6 @@ const replaceGetters = (content: string): string => {
   let result = content;
   let match;
   while (match = regex.exec(content)) {
-    console.log('🚀 -> file: methods.ts:100 -> replaceGetters -> match:', match);
     const stateVariableDeclarations = match[1].split(',').map(trimString).filter(s => !s.startsWith('}')).filter(Boolean);
     const stateVariableAssignments = stateVariableDeclarations.map(declaration => {
       const [name] = declaration.split(':').map(trimString);
