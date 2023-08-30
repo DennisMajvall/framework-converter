@@ -75,10 +75,12 @@ const cleanUpType = (type?: string): string => {
     result = 'boolean';
   } else if (result === 'func') {
     result = '() => void';
+  } else if (result === 'element') {
+    result = 'React.ReactNode';
   } else if (result === 'node') {
     result = 'React.Component | null';
   } else if (result.includes('arrayOf')) {
-    result = result.replace(/arrayOf\((.*)\)/, '$1[]')
+    result = result.replace(/arrayOf\((.*)\)/, (_all, $1) => `(${cleanUpType($1)})[]`);
   }
 
   return result;

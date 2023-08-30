@@ -15,6 +15,7 @@ export type ComponentProperty = {
 
 export type Component = {
   name: string;
+  imports: string[];
   props: ComponentProperty[];
   constructor: Constructor;
   scopeIndices: ScopeIndices;

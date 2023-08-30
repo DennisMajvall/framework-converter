@@ -1,11 +1,13 @@
 import { getIndexOfClosingBrace, indendations } from '../helpers';
 import { Component, OutputTypes, ScopeIndices } from '../types';
 import { getConstructor } from './constructor';
+import { getImportStatements, getImportStatementsOutput } from './imports';
 import { getMethods, getMethodsOutput } from './methods';
 import { getProps, getPropsDeclaration, getPropsDefinition } from './props';
 import { getStateVariableOutput } from './state-variables';
 
 export function getComponentAsOutput(text: string, outputType: OutputTypes): string {
+  const imports = getImportStatements(text);
   const { className, scopeIndices } = getClassNameAndScopeIndices(text);
   const componentContent = text.substring(scopeIndices.openBraceIndex, scopeIndices.closeBraceIndex);
   const props = getProps(text, className);
@@ -15,6 +17,7 @@ export function getComponentAsOutput(text: string, outputType: OutputTypes): str
 
   const component: Component = {
     constructor,
+    imports,
     methods,
     name: className,
     props,
@@ -40,23 +43,29 @@ export function getComponentAsOutput(text: string, outputType: OutputTypes): str
 }
 
 function getComponentAsReactOutput(component: Component): string {
-  const { name, props, constructor, methods } = component;
+  const { name, imports, props, constructor, methods } = component;
+  const importStatements = getImportStatementsOutput(imports);
   const stateVariableDeclarations = [...constructor.stateVariableDeclarations]
   const stateVariablesOutput = getStateVariableOutput(stateVariableDeclarations)
   if (!props.length)
-    return `const ${name} = () => {
+    return `${importStatements}
+
+  const ${name} = () => {
 ${indendations()}${stateVariablesOutput}
 `;
 
   const propsDeclaration = getPropsDeclaration(props);
   const propsDefinition = getPropsDefinition(props);
 
-  return `${propsDefinition}
+  return `${importStatements}
+
+${propsDefinition}
 
 const ${name} = ${propsDeclaration} => {
 ${indendations()}${stateVariablesOutput}
 
 ${indendations()}${getMethodsOutput(methods)}
+}
 `;
 }
 
