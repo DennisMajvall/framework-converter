@@ -112,7 +112,6 @@ const replaceGetters = (content: string): string => {
   let result = content;
   let match;
   while (match = regex.exec(content)) {
-    console.log('🚀 -> file: methods.ts:100 -> replaceGetters -> match:', match);
     const stateVariableDeclarations = match[1].split(',').map(trimString).filter(s => !s.startsWith('}')).filter(Boolean);
     const stateVariableAssignments = stateVariableDeclarations.map(declaration => {
       const [name] = declaration.split(':').map(trimString);

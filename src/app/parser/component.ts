@@ -6,18 +6,21 @@ import { getMethods, getMethodsOutput } from './methods';
 import { getProps, getPropsDeclaration, getPropsDefinition } from './props';
 import { getStateVariableOutput } from './state-variables';
 
-export function getComponentAsOutput(text: string, outputType: OutputTypes): string {
-  const imports = getImportStatements(text);
+export function getComponentAsOutput(
+  text: string,
+  outputType: OutputTypes
+): string {
   const { className, scopeIndices } = getClassNameAndScopeIndices(text);
-  const componentContent = text.substring(scopeIndices.openBraceIndex, scopeIndices.closeBraceIndex);
+  const componentContent = text.substring(
+    scopeIndices.openBraceIndex,
+    scopeIndices.closeBraceIndex
+  );
   const props = getProps(text, className);
   const constructor = getConstructor(componentContent, props);
   const methods = getMethods(componentContent, props);
-  console.log('🚀 -> file: component.ts:13 -> getComponentAsOutput -> methods:', methods);
 
   const component: Component = {
     constructor,
-    imports,
     methods,
     name: className,
     props,
@@ -32,10 +35,12 @@ export function getComponentAsOutput(text: string, outputType: OutputTypes): str
     case OutputTypes.Svelte:
     case OutputTypes.Vue:
     default:
-      output = 'Only React supported for now.'
+      output = 'Only React supported for now.';
       break;
   }
 
+  // Post-
+  const imports = getImportStatements(text, output);
 
   // Replace 3+ new-lines in a row with max 2 new-lines.
   output = output.replace(/\n{3,}/g, '\n\n').trimStart();
@@ -43,23 +48,20 @@ export function getComponentAsOutput(text: string, outputType: OutputTypes): str
 }
 
 function getComponentAsReactOutput(component: Component): string {
-  const { name, imports, props, constructor, methods } = component;
-  const importStatements = getImportStatementsOutput(imports);
-  const stateVariableDeclarations = [...constructor.stateVariableDeclarations]
-  const stateVariablesOutput = getStateVariableOutput(stateVariableDeclarations)
+  const { name, props, constructor, methods } = component;
+  const stateVariableDeclarations = [...constructor.stateVariableDeclarations];
+  const stateVariablesOutput = getStateVariableOutput(
+    stateVariableDeclarations
+  );
   if (!props.length)
-    return `${importStatements}
-
-  const ${name} = () => {
+    return `const ${name} = () => {
 ${indendations()}${stateVariablesOutput}
 `;
 
   const propsDeclaration = getPropsDeclaration(props);
   const propsDefinition = getPropsDefinition(props);
 
-  return `${importStatements}
-
-${propsDefinition}
+  return `${propsDefinition}
 
 const ${name} = ${propsDeclaration} => {
 ${indendations()}${stateVariablesOutput}
@@ -69,7 +71,10 @@ ${indendations()}${getMethodsOutput(methods)}
 `;
 }
 
-function getClassNameAndScopeIndices(text: string): {className: string, scopeIndices: ScopeIndices} {
+function getClassNameAndScopeIndices(text: string): {
+  className: string;
+  scopeIndices: ScopeIndices;
+} {
   const exportClassRegex = /export class\W+(\w+)\W+extends React.Component\W+{/;
   const matchedResult = text.match(exportClassRegex);
   if (!matchedResult) {
@@ -78,7 +83,7 @@ function getClassNameAndScopeIndices(text: string): {className: string, scopeInd
       scopeIndices: {
         openBraceIndex: 0,
         closeBraceIndex: 0,
-      }
+      },
     };
   }
 
@@ -91,6 +96,6 @@ function getClassNameAndScopeIndices(text: string): {className: string, scopeInd
     scopeIndices: {
       openBraceIndex,
       closeBraceIndex,
-    }
+    },
   };
 }
