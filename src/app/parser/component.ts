@@ -1,7 +1,11 @@
 import { getIndexOfClosingBrace, indendations } from '../helpers';
 import { Component, OutputTypes, ScopeIndices } from '../types';
 import { getConstructor } from './constructor';
-import { getImportStatements, getImportStatementsOutput } from './imports';
+import {
+  getImportStatements,
+  getImportStatementsOutput,
+  replaceNestedReactTypes,
+} from './imports';
 import { getMethods, getMethodsOutput } from './methods';
 import { getProps, getPropsDeclaration, getPropsDefinition } from './props';
 import { getStateVariableOutput } from './state-variables';
@@ -31,6 +35,7 @@ export function getComponentAsOutput(
   switch (outputType) {
     case OutputTypes.React:
       output = getComponentAsReactOutput(component);
+      output = getPostProcessedReactOutput(text, output);
       break;
     case OutputTypes.Svelte:
     case OutputTypes.Vue:
@@ -38,9 +43,6 @@ export function getComponentAsOutput(
       output = 'Only React supported for now.';
       break;
   }
-
-  // Post-
-  const imports = getImportStatements(text, output);
 
   // Replace 3+ new-lines in a row with max 2 new-lines.
   output = output.replace(/\n{3,}/g, '\n\n').trimStart();
@@ -69,6 +71,18 @@ ${indendations()}${stateVariablesOutput}
 ${indendations()}${getMethodsOutput(methods)}
 }
 `;
+}
+
+function getPostProcessedReactOutput(
+  originalText: string,
+  output: string
+): string {
+  const imports = getImportStatements(originalText, output);
+  const importsAsString = getImportStatementsOutput(imports);
+  let result = importsAsString + '\n\n' + output;
+  result = replaceNestedReactTypes(result);
+
+  return result;
 }
 
 function getClassNameAndScopeIndices(text: string): {

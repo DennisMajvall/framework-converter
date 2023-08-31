@@ -4,6 +4,11 @@ export function getImportStatementsOutput(imports: ImportStatement[]): string {
   return imports.join('\n');
 }
 
+export function replaceNestedReactTypes(input: string): string {
+  const { outputWithReplacedReactUsages } = getReactImports(input);
+  return outputWithReplacedReactUsages;
+}
+
 export function getImportStatements(
   originalText: string,
   outputText: string
@@ -11,26 +16,24 @@ export function getImportStatements(
   const importStatements = originalText.match(/import.*?;/g);
   if (!importStatements) return [];
 
-  const imports = Array.from(importStatements);
+  const { usedImports } = getReactImports(outputText);
 
-  const reactImportsUsed = getReactImports(outputText);
-  const toReplace: Record<string, string | (() => string)> = {
+  const toReplace: Record<string, string> = {
     [`from 'prop-types';`]: '',
-    [`from 'react';`]: `import React, { useState } from 'react';`,
+    [`from 'react';`]: `import React, { ${usedImports.join(
+      ', '
+    )} } from 'react';`,
   };
-  const [toReplaceKeys, toReplaceValues] = Object.entries(toReplace);
+  const toReplaceKeys = Object.keys(toReplace);
+  const imports = Array.from(importStatements);
 
   const replacedImports = imports
     .map((importStatement) => {
       const line = importStatement.trim();
-      const i = toReplaceKeys.findIndex((s) => line.endsWith(s));
-      if (~i) {
-        const replacement = toReplaceValues[i];
-        if (typeof replacement === 'string') return replacement;
-        else return replacement();
-      }
-      return line;
+      const key = toReplaceKeys.find((s) => line.endsWith(s));
+      return toReplace[key as string] ?? line;
     })
+    .filter((s) => s !== "import React, {  } from 'react';")
     .filter(Boolean);
 
   return replacedImports;
@@ -60,9 +63,17 @@ function getReactImports(outputText: string) {
 
   const regex = new RegExp(`(React\.)?(${possibleValues.join('|')})`, 'g');
   const usedImports: string[] = [];
-  const matches = outputText.replaceAll(regex, (_entireMatch, _$0, $1) => {
-    usedImports.push($1);
-    return $1;
-  });
-  return [...new Set(usedImports)];
+
+  const outputWithReplacedReactUsages = outputText.replaceAll(
+    regex,
+    (_entireMatch, _$0, $1) => {
+      usedImports.push($1);
+      return $1;
+    }
+  );
+
+  return {
+    usedImports: [...new Set(usedImports)],
+    outputWithReplacedReactUsages,
+  };
 }
