@@ -4,7 +4,7 @@ import { ComponentProperty, DefaultValueMap } from '../types';
 
 export function getPropsDefinition(props: ComponentProperty[]): string {
   return `type Props = {
-${indendations()}${getPropsAsMultilineString(props, false)}
+${indendations()}${getPropsAsMultilineString(props)}
 };\n`;
 }
 
@@ -35,27 +35,25 @@ export function getProps(text: string, className: string): ComponentProperty[] {
   return newProps;
 }
 
-function getPropsAsMultilineString(props: ComponentProperty[], withSemiColon: boolean): string {
+function getPropsAsMultilineString(props: ComponentProperty[]): string {
   const mapProp = ((prop: ComponentProperty): string => {
     const name = prop.name;
-    const defaultValue = prop.defaultValue ? ` = ${prop.defaultValue}` : '';
     const required = prop.required ? '' : '?';
     const type = prop.type;
-    const semiColon = withSemiColon ? ';' : '';
-    return `${name}${required}: ${type}${defaultValue}${semiColon}`;
+    return `${name}${required}: ${type};`;
   });
 
-  return props.map(mapProp).join(`,\n${indendations()}`);
+  return props.map(mapProp).join(`\n${indendations()}`);
 }
 
 function getPropNamesWithDefaultValuesAsMultilineString(props: ComponentProperty[]): string {
   const mapProp = ((prop: ComponentProperty): string => {
     const name = prop.name;
     const defaultValue = prop.defaultValue ? ` = ${prop.defaultValue}` : '';
-    return `${name}${defaultValue}`;
+    return `${name}${defaultValue},`;
   });
 
-  return props.map(mapProp).join(`,\n${indendations()}`);
+  return props.map(mapProp).join(`\n${indendations()}`);
 }
 
 const getPropsRegexp = (className: string): RegExp => new RegExp(className + '\.propTypes = {(.+?)};', 's');
@@ -78,9 +76,12 @@ const cleanUpType = (type?: string): string => {
   } else if (result === 'element') {
     result = 'React.ReactNode';
   } else if (result === 'node') {
-    result = 'React.Component | null';
+    result = 'React.ReactNode | null';
   } else if (result.includes('arrayOf')) {
-    result = result.replace(/arrayOf\((.*)\)/, (_all, $1) => `(${cleanUpType($1)})[]`);
+    result = result.replace(/arrayOf\((.*)\)/, (_all, $1) => {
+      const innerType = `${cleanUpType($1)}[]`;
+      return innerType.includes('|') ? `(${innerType})` : innerType;
+    });
   }
 
   return result;
@@ -137,7 +138,7 @@ function extractRemainingDefaultValuesBasedOnType(input: ComponentProperty): Com
     return { ...input, defaultValue: `''` };
   } else if (type === 'number') {
     return { ...input, defaultValue: '0' };
-  } else if (type === 'React.Component | null') {
+  } else if (type === 'React.ReactNode | null') {
     return { ...input, defaultValue: 'null' };
   } else if (type === '() => void') {
     return { ...input, defaultValue: '() => {}' };
