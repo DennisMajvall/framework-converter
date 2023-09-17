@@ -35,7 +35,6 @@ export function getComponentAsOutput(text: string, outputType: OutputTypes): str
       break;
   }
 
-
   // Replace 3+ new-lines in a row with max 2 new-lines.
   output = output.replace(/\n{3,}/g, '\n\n').trimStart();
   return output;
@@ -49,9 +48,8 @@ function getComponentAsReactOutput(component: Component): string {
   if (!props.length)
     return `${importStatements}
 
-  const ${name} = () => {
-${indendations()}${stateVariablesOutput}
-`;
+export const ${name} = () => {
+${indendations()}${stateVariablesOutput}`;
 
   const propsDeclaration = getPropsDeclaration(props);
   const propsDefinition = getPropsDefinition(props);
@@ -60,12 +58,11 @@ ${indendations()}${stateVariablesOutput}
 
 ${propsDefinition}
 
-const ${name} = ${propsDeclaration} => {
+export const ${name} = ${propsDeclaration} => {
 ${indendations()}${stateVariablesOutput}
 
 ${indendations()}${getMethodsOutput(methods)}
-}
-`;
+};`;
 }
 
 function getClassNameAndScopeIndices(text: string): {className: string, scopeIndices: ScopeIndices} {
