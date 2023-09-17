@@ -2,32 +2,50 @@ import { getIndexOfClosingBrace, indendations, trimString, trimStringCustom } fr
 import { NUM_INDENTATION_SPACES } from '../settings';
 import { ComponentProperty, Method } from '../types';
 
+function indentStatementsOnScopeChanges(statements: string[]) {
+  let currIndentation = NUM_INDENTATION_SPACES;
+  return statements
+    .map(statement => {
+      if (statement.match(/^ *\}/)) currIndentation--;
+      const result = `${indendations(currIndentation)}${statement}`;
+      if (statement.match(/ *[a-zA-Z_].*? \{/)) currIndentation++;
+      return result;
+    });
+}
+
 export function getMethodsOutput(methods: Method[]): string {
   const getRenderMethodOutput = (method: Method) => {
-    const { statementsToRun, methodArgsString } = method;
-    const statements = statementsToRun.join('\n');
-    return `return (
-${statements}
-${indendations()});`;
+    const { statementsToRun: statementsToRunWithIndentation } = method;
+    const statementsToRun = statementsToRunWithIndentation.map((line, index) =>
+      line.slice(index === 0 ? NUM_INDENTATION_SPACES * 2 : NUM_INDENTATION_SPACES)
+    );
+    const returnStartIndex = statementsToRun.findIndex(line => line.trim().startsWith('return (')) + 1;
+    const statementsBeforeReturn = statementsToRun.splice(0, returnStartIndex);
+
+    return `${statementsBeforeReturn.join('\n')}
+${statementsToRun.join('\n')}`;
+  };
+
+  const convertOnMountedFunction = (method: Method) => {
+    const { statementsToRun } = method;
+    console.log('convertOnMountedFunction', statementsToRun);
+    const statements = indentStatementsOnScopeChanges(statementsToRun);
+
+    return `useEffect(() => {
+${statements.join('\n')}
+${indendations()}}, []);`;
   };
 
   const getMethodOutput = (method: Method) => {
     const { name, statementsToRun, methodArgsString } = method;
     if (name === 'render') return getRenderMethodOutput(method);
+    if (name === 'componentDidMount') return convertOnMountedFunction(method);
 
     const args = methodArgsString.split(',').map(trimString).filter(Boolean);
     const argsString = args.length ? `${args.join(', ')}` : '';
-    let currIndentation = 2;
-    const statements = statementsToRun
-      .map(statement => {
-        if (statement.match(/^ *\}/)) currIndentation--;
-        const result = `${indendations(currIndentation)}${statement}`;
-        if (statement.match(/ *[a-zA-Z_].*? \{/)) currIndentation++;
-        return result;
-      })
-      .join('\n');
+    const statements = indentStatementsOnScopeChanges(statementsToRun);
     return `const ${name} = ${argsString} => {
-${statements}
+${statements.join('\n')}
 ${indendations()}};`;
   };
 
@@ -87,10 +105,15 @@ export function getMethods(allText: string, props: ComponentProperty[]): Method[
       }
       return result;
     });
-
   }
 
-  return methods;
+  const sortedMethods = [...methods].sort((a, b) => {
+    if (a.name === 'componentDidMount') return -1
+    if (a.name === 'render') return 1;
+    return a.name.localeCompare(b.name)
+  })
+
+  return sortedMethods;
 }
 
 const replaceSetters = (content: string): string => {
