@@ -60,6 +60,7 @@ function getReactImports(outputText: string) {
     'useSyncExternalStore',
     'useTransition',
   ];
+  const typeOnlyImports = ['ReactElement', 'ReactNode'];
 
   const regex = new RegExp(`(React\.)?(${possibleValues.join('|')})`, 'g');
   const usedImports: string[] = [];
@@ -67,7 +68,8 @@ function getReactImports(outputText: string) {
   const outputWithReplacedReactUsages = outputText.replaceAll(
     regex,
     (_entireMatch, _$0, $1) => {
-      usedImports.push($1);
+      const value = typeOnlyImports.includes($1) ? `type ${$1}` : $1;
+      usedImports.push(value);
       return $1;
     }
   );

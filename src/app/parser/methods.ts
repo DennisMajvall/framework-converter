@@ -28,7 +28,6 @@ ${statementsToRun.join('\n')}`;
 
   const convertOnMountedFunction = (method: Method) => {
     const { statementsToRun } = method;
-    console.log('convertOnMountedFunction', statementsToRun);
     const statements = indentStatementsOnScopeChanges(statementsToRun);
 
     return `useEffect(() => {

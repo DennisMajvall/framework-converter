@@ -55,20 +55,29 @@ function getComponentAsReactOutput(component: Component): string {
   const stateVariablesOutput = getStateVariableOutput(
     stateVariableDeclarations
   );
-  if (!props.length)
-    return `export const ${name} = () => {
-${indendations()}${stateVariablesOutput}`;
 
-  const propsDeclaration = getPropsDeclaration(props);
-  const propsDefinition = getPropsDefinition(props);
+  const lines = [];
+  if (props.length) {
+    const propsDeclaration = getPropsDeclaration(props);
+    const propsDefinition = getPropsDefinition(props);
+    lines.push(
+      propsDefinition,
+      '',
+      '',
+      `export const ${name} = ${propsDeclaration} => {`
+    );
+  } else {
+    lines.push(`export const ${name} = () => {`);
+  }
 
-  return `${propsDefinition}
+  lines.push(
+    indendations().concat(stateVariablesOutput),
+    indendations().concat(getMethodsOutput(methods)),
+    `};`,
+    ''
+  );
 
-export const ${name} = ${propsDeclaration} => {
-${indendations()}${stateVariablesOutput}
-
-${indendations()}${getMethodsOutput(methods)}
-};`;
+  return lines.join('\n');
 }
 
 function getPostProcessedReactOutput(
